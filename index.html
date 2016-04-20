@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF8">
+	<title>Crop</title>
+
+	<style type="text/css">
+		#canvas {
+			position: absolute;
+		}
+
+		#edit {
+			position: absolute;
+			z-index: 9999;
+		}
+	</style>
+</head>
+
+<body>
+	<div>
+		<input id="avatar" type="file" name="file" />
+	</div>
+	<canvas id="canvas" width="300" height="300" style="border: 1px solid red"></canvas>
+	<canvas id="edit" width="300" height="300" style="border: 1px solid red"></canvas>
+	<canvas id="cut_box" style="display: none"></canvas>
+	
+	<div style="margin-top :350px;">
+		<button id="cut">CUT</button>
+		<img id="pic" />
+	</div>
+</body>
+
+<script type="text/javascript">
+	if(window.FileReader) {  
+	    var fr = new FileReader();  
+	    // add your code here  
+	}  
+	else {  
+	    alert("Not supported by your browser!");  
+	}
+
+	var c = document.getElementById("canvas");
+	var f = document.getElementById("edit");
+	var d = document.getElementById("cut_box");
+	var ctx = c.getContext("2d");
+	var etx = f.getContext("2d");
+	var dtx = d.getContext("2d");
+	var cWidth = c.width;
+	var cHeight = c.height;
+	var iWidth,iHeight,px,py,dpx,dpy,depx,depy,opx,opy;
+	var drag = false;
+	var imageUrl;
+	var image = new Image();
+
+	document.getElementById("avatar").onchange = function() {
+		var file = this.files[0];
+		fr.readAsDataURL(file);
+		fr.onloadend = function(e) {
+			image.src = e.target.result;
+			image.onload = function() {
+				if (image.width <= cWidth && image.height <= cHeight) {
+					iWidth = image.width;
+					iHeight = image.height;
+				} else {
+					iWidth = image.width > image.height?cWidth:(image.width/(image.height/cHeight));
+					iHeight = image.height > image.width?cHeight:(image.height/(image.width/cWidth));
+				}
+
+				px = (cWidth - iWidth)/2;
+				py = (cHeight - iHeight)/2;
+				epx = px + iWidth;
+				epy = py + iHeight;
+				
+				opx = px;
+				opy = py;
+				oepx = epx;
+				oepy = epy;
+				dpx = px;
+				dpy = py;
+				depx = epx;
+				depy = epy;
+
+				ctx.drawImage(image,px,py,iWidth,iHeight);
+				imageUrl = c.toDataURL();
+				paintBox(etx,px,py,iWidth,iHeight);
+
+				f.onmousemove = function(evt) {
+					var mousePos = getMousePos(this,evt);
+					if (drag) {
+						switch(drag) {
+							case "left":
+								dpx = mousePos.x;
+								if (dpx > px && dpx < oepx) {
+									paintBox(etx,dpx,py,epx-dpx,epy-py);
+								}
+
+								if (dpx < px && dpx > opx) {
+									paintBox(etx,dpx,py,epx-dpx,epy-py);
+								}
+								break;
+							case "top":
+								dpy = mousePos.y;
+								if (dpy > py && dpy < oepy) {
+									paintBox(etx,px,dpy,epx-px,epy-dpy);
+								}
+
+								if (dpy < py && dpy > opy) {
+									paintBox(etx,px,dpy,epx-px,epy-dpy);
+								}
+								break;
+							case "right":
+								depx = mousePos.x;
+								if (depx < epx && depx > opx) {
+									paintBox(etx,px,py,depx - px,epy-py);
+								} 
+
+								if (depx > epx && depx < oepx) {
+									paintBox(etx,px,py,depx - px,epy-py);
+								}
+								break;
+							case "bottom":
+								depy = mousePos.y;
+								if (depy < epy && depy > opy) {
+									paintBox(etx,px,py,epx-px,depy - py);
+								}
+
+								if (depy > epy && depy < oepy) {
+									paintBox(etx,px,py,epx-px,depy - py);
+								}
+								break;
+						}
+					} else {
+						if ((Math.abs(mousePos.x - px) < 2 && mousePos.y >= py && mousePos.y <= epy) || (Math.abs(mousePos.y - py) < 2 && mousePos.x >= px && mousePos.x <= epx) || (Math.abs(epx - mousePos.x) < 2 && mousePos.y >= py && mousePos.y <= epy) || (Math.abs(epy -mousePos.y) < 2 && mousePos.x >= px && mousePos.x <= epx)) {
+							this.style.cursor = "crosshair";
+						} else {
+							this.style.cursor = "default";
+						}
+					}
+					
+				}
+
+				f.onmousedown = function(evt) {
+					var mousePos = getMousePos(this,evt);
+					if (Math.abs(px - mousePos.x) < 2 && mousePos.y >= py && mousePos.y <= epy) {
+						drag = "left";
+					} else if (Math.abs(py - mousePos.y) < 2 && mousePos.x >= px && mousePos.x <= epx) {
+						drag = "top";
+					} else if (Math.abs(epx - mousePos.x) < 2 && mousePos.y >= py && mousePos.y <= epy) {
+						drag = "right"
+					} else if (Math.abs(epy -mousePos.y) < 2 && mousePos.x >= px && mousePos.x <= epx) {
+						drag = "bottom"
+					} else {
+						drag = false;
+					}
+				}
+
+				f.onmouseup = function() {
+					if (drag) {
+						if (dpx < opx) {
+							px = opx;
+						} else {
+							px = dpx;
+						}
+						if (dpy < opy) {
+							py = opy;
+						} else {
+							py = dpy;
+						}
+						if (depx > oepx) {
+							epx = oepx;
+						} else {
+							epx = depx;
+						}
+						if (depy > oepy) {
+							epy = oepy
+						} else {
+							epy = depy;
+						}
+						drag = false;
+					}
+				}
+			}
+		}
+	}
+
+	function getMousePos(canvas, evt) { 
+	   var rect = canvas.getBoundingClientRect(); 
+	   return { 
+	     x: evt.clientX - rect.left * (canvas.width / rect.width),
+	     y: evt.clientY - rect.top * (canvas.height / rect.height)
+	   }
+	 }
+
+	function paintBox(etx,px,py,iWidth,iHeight) {
+		etx.clearRect(0,0,300,300);
+		etx.fillStyle = "rgba(0,0,0,0.5)";
+		etx.fillRect(0,0,300,300);
+		etx.clearRect(px,py,iWidth,iHeight);
+
+		etx.strokeStyle = "blue";
+		etx.strokeRect(px,py,iWidth,iHeight);
+	}
+
+	function cutImage() {
+		var cutImage = new Image();
+		cutImage.src = imageUrl;
+		cutImage.onload = function() {
+			opx = px;
+			opy = py;
+			oepx = epx;
+			oepy = epy;
+			ctx.clearRect(0,0,300,300);
+			ctx.drawImage(cutImage,px,py,epx-px,epy-py,px,py,epx-px,epy-py);
+			d.height = epy-py;
+			d.width = epx-px;
+			dtx.drawImage(cutImage,px,py,epx-px,epy-py,0,0,epx-px,epy-py);
+			document.getElementById("pic").src = d.toDataURL();
+		}
+		
+	}
+
+	document.getElementById("cut").onclick = function() {
+		cutImage();
+	}
+
+</script>
+
+</html>
